@@ -82,7 +82,6 @@ export default {
         localStorage.setItem("authToken", token);
         apiService.setAuthToken(token);
         console.log("Login successful:", response.data);
-        this.$store.dispatch('fetchMovies');
         this.$router.push({ name: "MovieList" });
       } catch (error) {
         console.error("Error during login:", error);

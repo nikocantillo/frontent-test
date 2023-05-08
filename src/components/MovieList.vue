@@ -92,6 +92,23 @@
   border-color: #007bff;
   box-shadow: 0 0 4px rgba(0, 123, 255, 0.25);
 }
+
+.movie-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.movie-card {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #fff;
+}
+
 h1 {
   margin-bottom: 2rem;
 }
@@ -127,8 +144,8 @@ p:last-child {
     <h1>Movies and Series</h1>
     <div class="search-container">
       <input type="text" v-model="searchQuery" placeholder="Search movies" />
-      <button @click="searchMovies">Search</button>
-      <select v-model="orderBy" @change="searchMovies">
+      <button @click="()=>searchMovies()">Search</button>
+      <select v-model="orderBy" @change="()=>searchMovies()">
         <option value="">Sort by</option>
         <option value="name">Name</option>
         <option value="genre">Genre</option>
@@ -136,16 +153,14 @@ p:last-child {
       </select>
       <button @click="getRandomMovie">Random Movie</button>
     </div>
-    <div v-if="showRandomMovie && randomMovie" class="random-movie">
-      <h2>Random Movie:</h2>
-      <h3>{{ randomMovie.name }}</h3>
-      <p>Genre: {{ randomMovie.genre }}</p>
-      <p>Type: {{ randomMovie.type }}</p>
-      <p>Viewed By: {{ randomMovie.viewed_by.join(", ") }}</p>
-      <p>Average Rating: {{ randomMovie.average_rating }}</p>
-    </div>
-    <ul v-else>
-      <li v-for="movie in movies" :key="movie.id">
+    <show-random-movie
+      v-if="showRandomMovie"
+      :random-movie="randomMovie"
+      @movieWatched="()=>searchMovies()"
+      @movieRated="()=>searchMovies()"
+    ></show-random-movie>
+    <div class="movie-grid" v-else>
+      <div class="movie-card" v-for="movie in movies" :key="movie.id">
         <h3>{{ movie.name }}</h3>
         <p>Genre: {{ movie.genre }}</p>
         <p>Type: {{ movie.type }}</p>
@@ -156,21 +171,34 @@ p:last-child {
         </button>
         <div class="rating-container">
           <label for="rating">Rate:</label>
-          <select v-model="movie.rating" @change="rateMovie(movie.id)">
+          <select
+            v-model="movie.rating"
+            @change="rateMovie(movie.id, movie.rating)"
+          >
             <option value="">Choose rating</option>
             <option v-for="n in 5" :key="n" :value="n">{{ n }}</option>
           </select>
         </div>
-      </li>
-    </ul>
+      </div>
+    </div>
+    <PagiNation
+      :total-pages="totalPages"
+      :current-page="currentPage"
+      @updatePage="(v)=>searchMovies(v)"
+    ></PagiNation>
   </div>
 </template>
 
 <script>
+import ShowRandomMovie from "./ShowRandomMovie.vue";
+import PagiNation from "./PagiNation.vue";
 import apiService from "@/services/apiService";
 
 export default {
-  
+  components: {
+    ShowRandomMovie,
+    PagiNation,
+  },
   data() {
     return {
       searchQuery: "",
@@ -178,17 +206,23 @@ export default {
       showRandomMovie: false,
       randomMovie: null,
       movies: [],
+      currentPage: 1,
+      totalPages: 1,
+      pageSize: 3,
     };
   },
   methods: {
-    async searchMovies() {
+    async searchMovies(page = 1) {
       this.showRandomMovie = false;
+      this.currentPage = page;
       try {
         const response = await apiService.getMovies(
           this.searchQuery,
-          this.orderBy
+          this.orderBy,
+          this.currentPage
         );
-        this.movies = response.data;
+        this.movies = response.data.results;
+        this.totalPages = response.data.total_pages;
       } catch (error) {
         console.error("Error searching movies:", error);
       }
@@ -211,14 +245,18 @@ export default {
         console.error("Error marking movie as watched:", error);
       }
     },
-    async rateMovie(movieId) {
+    async rateMovie(movieId, rating) {
       try {
-        const rating = this.movies.find((movie) => movie.id === movieId).rating;
         await apiService.rateMovie(rating, movieId);
+        this.searchMovies();
         console.log("Movie rated successfully");
       } catch (error) {
         console.error("Error rating movie:", error);
       }
+    },
+    updateCurrentPage(pageNumber) {
+      this.currentPage = pageNumber;
+      this.searchMovies(this.currentPage);
     },
   },
 };

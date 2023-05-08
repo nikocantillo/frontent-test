@@ -23,22 +23,20 @@ export default {
   login(credentials) {
     return apiClient.post("auth/login/", credentials);
   },
-  getMovies(query = "", orderBy = "") {
+  getMovies(query = "", orderBy = "", page = 1, pageSize = 3) {
     const params = new URLSearchParams();
     let url = "movies_series/list/list_filtered/";
-
     if (query) {
       params.append("search", query);
     }
-
     if (orderBy) {
       params.append("order_by", orderBy);
     }
-
+    params.append("page", page);
+    params.append("page_size", pageSize);
     if (params.toString()) {
       url += "?" + params.toString();
     }
-
     return apiClient.get(url);
   },
   getRandomMovie() {
